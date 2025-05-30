@@ -1,30 +1,49 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
-import img from "../assets/bg.jpg"
+import img from "../assets/bg.jpg";
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleLogin = async () => {
+    console.log('Login button clicked');
+  
     try {
       const res = await axios.post('http://localhost:5000/api/auth/login', { email, password });
-      const userId  = res.data.user._id;
-
-      localStorage.setItem('userId', userId);
-      navigate('/video');
+  
+      console.log('Login response:', res); // Log the response to check token and user
+      const { token, user } = res.data;
+  
+      if (token && user) {
+        console.log('Token and user data received. Navigating to /video',res.data); // Log navigation step
+        localStorage.setItem('token', token);
+        localStorage.setItem('userId', user.id);
+  
+        navigate('/video');  // This should redirect to /video
+      } else {
+        setError('Invalid response from server');
+      }
     } catch (err) {
-      console.error(err);
-      alert('Login failed');
+      console.error('Login error:', err);
+      setError(err.response?.data || 'Login failed. Please try again.');
     }
   };
-
+  
   return (
     <div className="flex items-center justify-center min-h-screen bg-cover bg-no-repeat" style={{ backgroundImage: `url(${img})` }}>
-      <div className=" p-8 rounded-lg shadow-md w-full max-w-sm backdrop-blur-xs ">
+      <div className="p-8 rounded-lg shadow-md w-full max-w-sm backdrop-blur-xs">
         <h2 className="text-2xl font-semibold text-center text-white mb-6">Login</h2>
+
+        {error && (
+          <div className="mb-4 text-center text-red-500">
+            {error}
+          </div>
+        )}
+
         <div className="flex flex-col gap-4">
           <input
             type="email"

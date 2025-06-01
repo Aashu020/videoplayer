@@ -22,8 +22,7 @@ const Login = () => {
         console.log('Token and user data received. Navigating to /video',res.data); // Log navigation step
         localStorage.setItem('token', token);
         localStorage.setItem('userId', user.id);
-  
-        navigate('/video');  // This should redirect to /video
+        navigate('/video');
       } else {
         setError('Invalid response from server');
       }

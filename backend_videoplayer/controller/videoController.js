@@ -142,25 +142,6 @@ const getAllProgress = async (req, res) => {
   }
 };
 
-const deleteProgress = async (req, res) => {
-  try {
-    const { videoId } = req.params;
-    const { userId } = req.query;
-    if (!userId) {
-      return res.status(400).json({ error: 'Missing userId' });
-    }
-
-    const result = await VideoProgress.findOneAndDelete({ userId, videoId });
-    if (!result) {
-      return res.status(404).json({ error: 'Progress not found' });
-    }
-    res.status(200).json({ message: 'Progress deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting progress:', error);
-    res.status(500).json({ error: 'Internal server error', message: error.message });
-  }
-};
-
 // Helper function to merge overlapping intervals
 function mergeIntervals(intervals) {
   if (intervals.length <= 1) return intervals;
@@ -183,9 +164,76 @@ function calculateWatchedTime(intervals) {
   return intervals.reduce((total, [start, end]) => total + (end - start), 0);
 }
 
+const bulkadd = async(req,res) => {
+  try {
+    const { updates } = req.body;
+    const VideoProgress = require('../models/Progress'); // Adjust path
+    const results = [];
+    for (const update of updates) {
+      try {
+        let progress = await VideoProgress.findOne({ videoId: update.videoId });
+        if (!progress) {
+          progress = new VideoProgress({
+            videoId: update.videoId,
+            duration: update.duration,
+            lastPosition: update.currentTime,
+            percentage: 0,
+            watchedIntervals: [],
+            isCompleted: false,
+          });
+        }
+        progress.lastPosition = update.currentTime;
+        progress.duration = update.duration;
+        if (update.interval) {
+          progress.watchedIntervals.push(update.interval);
+        }
+        await progress.save();
+        results.push({
+          videoId: update.videoId,
+          success: true,
+          progress: {
+            lastPosition: progress.lastPosition,
+            percentage: progress.percentage,
+            watchedIntervals: progress.watchedIntervals,
+            isCompleted: progress.isCompleted,
+          },
+        });
+      } catch (error) {
+        results.push({
+          videoId: update.videoId,
+          success: false,
+          error: error.message,
+        });
+      }
+    }
+    res.status(200).json({ results });
+  } catch (error) {
+    console.error('Bulk update error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+const summary = async(req, res) => {
+  try {
+    const VideoProgress = require('../models/Progress'); // Adjust path
+    const stats = await VideoProgress.getUserStats(); // Adjust for no userId
+    res.status(200).json({
+      stats: {
+        totalVideos: stats.totalVideos,
+        totalWatchTime: Math.round(stats.totalWatchTime * 100) / 100,
+        averageCompletion: Math.round(stats.averageCompletion * 100) / 100,
+      },
+    });
+  } catch (error) {
+    console.error('Error getting stats:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
 module.exports = {
   updateProgress,
   getProgress,
   getAllProgress,
-  deleteProgress,
+  bulkadd,
+  summary
 };
